@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "node.c"
+
 #define MAX_CHILDREN (1024)
 
 /*
@@ -243,68 +245,53 @@ int children(Board parent, Board *out) {
 
 void solve_all_the_things() {
     size_t num = 65*65*65*65;
-    float *mins = malloc(num * sizeof(float));
-    float *maxs = malloc(num * sizeof(float));
+    NodeValue *nodes = malloc(num * sizeof(NodeValue));
     Board children_[MAX_CHILDREN];
 
     for (size_t i = 0; i < num; ++i) {
         float res = result(from_hash(i));
         if (isnan(res)) {
-            mins[i] = -INFINITY;
-            maxs[i] = INFINITY;
+            nodes[i] = NODE_VALUE_UNKNOWN;
         } else {
-            maxs[i] = mins[i] = res;
+            nodes[i] = (NodeValue){res, res, 0, 0};
         }
     }
 
-    float distance = 1;
-    while (distance) {
-        distance = 0;
+    int running = 1;
+    while (running) {
+        running = 0;
         for (size_t i = 0; i < num; ++i) {
             if (i % 1000000 == 0) {
-                printf("%zu, %f\n", 100 * i / num, distance);
+                printf("%zu\n", 100 * i / num);
             }
-            if (mins[i] == maxs[i]) {
+            if (node_value_terminal(nodes[i])) {
                 continue;
             }
-            float best_max = -INFINITY;
-            float best_min = -INFINITY;
+            NodeValue parent = NODE_VALUE_INITIAL;
             int num_children = children(from_hash(i), children_);
             for (int j = 0; j < num_children; ++j) {
                 size_t h = hash(children_[j]);
-                float min = -maxs[h];
-                float max = -mins[h];
-                if (min > best_min) {
-                    best_min = min;
-                }
-                if (max > best_max) {
-                    best_max = max;
-                }
+                NodeValue child = nodes[h];
+                parent = node_value_negamax(parent, child);
             }
-
-            if (best_min != mins[i]) {
-                mins[i] = best_min;
-                distance = 1;
-            }
-            if (best_max != maxs[i]) {
-                maxs[i] = best_max;
-                distance = 1;
+            if (!node_value_equal(parent, nodes[i])) {
+                running = 1;
+                nodes[i] = parent;
             }
         }
         Board board = {.player=3, .kings=4097, .rooks=2};
         print_board(board);
-        printf("%f / %f\n", mins[hash(board)], maxs[hash(board)]);
+        node_value_repr(nodes[hash(board)]);
         int numc = children(board, children_);
         printf("%d\n", numc);
         for (int i = 0; i < numc; ++i) {
             Board child = children_[i];
             print_board(child);
-            printf("%f / %f\n", mins[hash(child)], maxs[hash(child)]);
+            node_value_repr(nodes[hash(child)]);
         }
     }
 
-    free(maxs);
-    free(mins);
+    free(nodes);
 }
 
 void main() {
