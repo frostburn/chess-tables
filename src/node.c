@@ -1,24 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define VALUE_MIN (-127)
-#define VALUE_MAX (127)
-#define DISTANCE_MAX (254)
-
-typedef signed char value_t;
-typedef unsigned char distance_t;
-
-typedef struct NodeValue
-{
-    value_t low;
-    value_t high;
-    distance_t low_distance;
-    distance_t high_distance;
-} NodeValue;
-
-static const NodeValue NODE_VALUE_UNKNOWN = {VALUE_MIN, VALUE_MAX, DISTANCE_MAX, DISTANCE_MAX};
-
-static const NodeValue NODE_VALUE_INITIAL = {VALUE_MIN, VALUE_MIN, DISTANCE_MAX, 0};
+#include "chess-tables/node.h"
 
 void node_value_repr(NodeValue node) {
     printf("(NodeValue){%d, %d, %d, %d}\n", node.low, node.high, node.low_distance, node.high_distance);
@@ -34,8 +17,8 @@ NodeValue node_value_negamax(NodeValue parent, NodeValue child) {
         assert(child.high != VALUE_MIN);
     #endif
     #ifdef NODE_DEBUG
-        print_node(parent);
-        print_node(child);
+        node_value_repr(parent);
+        node_value_repr(child);
     #endif
     distance_t low_distance = child.low_distance + 1;
     distance_t high_distance = child.high_distance + 1;

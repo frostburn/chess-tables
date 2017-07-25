@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "node.c"
+#include "chess-tables/node.h"
 
 #define MAX_CHILDREN (1024)
 
@@ -292,8 +292,4 @@ void solve_all_the_things() {
     }
 
     free(nodes);
-}
-
-void main() {
-    solve_all_the_things();
 }
