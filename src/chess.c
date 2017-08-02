@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "chess-tables/node.h"
+#include "chess-tables/chess.h"
 
 #define MAX_CHILDREN (1024)
 
