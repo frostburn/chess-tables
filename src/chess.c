@@ -5,6 +5,7 @@
 
 #include "chess-tables/node.h"
 #include "chess-tables/chess.h"
+#include "full-dict/indicator.h"
 
 #define MAX_CHILDREN (1024)
 
@@ -199,6 +200,10 @@ Board from_hash(size_t h) {
     return board;
 }
 
+int indicator(keys_t k) {
+    return is_canonical(from_hash(k));
+}
+
 #define MAKE_MOVE(child, type, piece, move) {\
     child.type ^= piece;\
     child.player ^= piece;\
@@ -276,54 +281,66 @@ int children(Board parent, Board *out) {
 
 void solve_all_the_things() {
     size_t num = 65*65*65*65;
-    NodeValue *nodes = malloc(num * sizeof(NodeValue));
+    IndicatorDict *dict = malloc(sizeof(IndicatorDict));
+    indicator_dict_init(dict, indicator, num, 256);
+
+    NodeValue *nodes = malloc(dict->num_keys * sizeof(NodeValue));
     Board children_[MAX_CHILDREN];
 
-    for (size_t i = 0; i < num; ++i) {
-        float res = result(from_hash(i));
+    size_t i = 0;
+    keys_t key = dict->min_key;
+    while (key <= dict->max_key) {
+        float res = result(from_hash(key));
         if (isnan(res)) {
             nodes[i] = NODE_VALUE_UNKNOWN;
         } else {
             nodes[i] = (NodeValue){res, res, 0, 0};
         }
+        ++i;
+        key = indicator_dict_next(dict, key);
     }
+
+    printf("Number of positions %llu\n", dict->num_keys);
 
     int running = 1;
     while (running) {
         running = 0;
-        for (size_t i = 0; i < num; ++i) {
-            if (i % 1000000 == 0) {
-                printf("%zu\n", 100 * i / num);
+        i = 0;
+        key = dict->min_key;
+        while (key <= dict->max_key) {
+            if (i % 100000 == 0) {
+                printf("%zu\n", 100 * i / dict->num_keys);
             }
             if (node_value_terminal(nodes[i])) {
+                ++i;
+                key = indicator_dict_next(dict, key);
                 continue;
             }
-            Board board = from_hash(i);
-            if (!is_canonical(board)) {
-                continue;
-            }
+            Board board = from_hash(key);
             NodeValue parent = NODE_VALUE_INITIAL;
             int num_children = children(board, children_);
             for (int j = 0; j < num_children; ++j) {
                 size_t h = hash(canonize_board(children_[j]));
-                NodeValue child = nodes[h];
+                NodeValue child = nodes[indicator_dict_index(dict, h)];
                 parent = node_value_negamax(parent, child);
             }
             if (!node_value_equal(parent, nodes[i])) {
                 running = 1;
                 nodes[i] = parent;
             }
+            ++i;
+            key = indicator_dict_next(dict, key);
         }
         Board board = {.player=3, .kings=4097, .rooks=2};
         board = canonize_board(board);
         print_board(board);
-        node_value_repr(nodes[hash(board)]);
+        node_value_repr(nodes[indicator_dict_index(dict, hash(board))]);
         int numc = children(board, children_);
         printf("%d\n", numc);
         for (int i = 0; i < numc; ++i) {
             Board child = canonize_board(children_[i]);
             print_board(child);
-            node_value_repr(nodes[hash(child)]);
+            node_value_repr(nodes[indicator_dict_index(dict, hash(child))]);
         }
     }
 

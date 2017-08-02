@@ -1,0 +1,3 @@
+[submodule "full-dict"]
+	path = full-dict
+	url = git@github.com:frostburn/full-dict.git
