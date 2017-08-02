@@ -2,6 +2,7 @@ ADD_LIBRARY(
   chesstables
   chess.c
   node.c
+  piece.c
 )
 INSTALL(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/chess-tables

@@ -8,19 +8,77 @@
 
 #define MAX_CHILDREN (1024)
 
-/*
- * Simplified chess where pieces can capture their own color
- */
+#define CANONIZE_INNER(op) {\
+    board.kings = kings;\
+    board.rooks = op(board.rooks);\
+    board.bishops = op(board.bishops);\
+    board.player = op(board.player);\
+    return board;\
+}
 
-typedef unsigned long long int piece_t;
+Board canonize_board(Board board) {
+    piece_t kings = piece_mirror_v(board.kings);
+    if (kings < board.kings) {
+        CANONIZE_INNER(piece_mirror_v);
+    }
+    kings = piece_mirror_h(kings);
+    if (kings < board.kings) {
+        CANONIZE_INNER(piece_rot_180);
+    }
+    kings = piece_mirror_v(kings);
+    if (kings < board.kings) {
+        CANONIZE_INNER(piece_mirror_h);
+    }
+    kings = piece_mirror_d(kings);
+    if (kings < board.kings) {
+        CANONIZE_INNER(piece_rot_270);
+    }
+    kings = piece_mirror_v(kings);
+    if (kings < board.kings) {
+        CANONIZE_INNER(piece_mirror_a);
+    }
+    kings = piece_mirror_h(kings);
+    if (kings < board.kings) {
+        CANONIZE_INNER(piece_rot_90);
+    }
+    kings = piece_mirror_v(kings);
+    if (kings < board.kings) {
+        CANONIZE_INNER(piece_mirror_d);
+    }
+    return board;
+}
 
-typedef struct Board
-{
-    piece_t player;
-    piece_t kings;
-    piece_t rooks;
-    piece_t bishops;
-} Board;
+int is_canonical(Board board) {
+    piece_t kings = piece_mirror_v(board.kings);
+    if (kings < board.kings) {
+        return 0;
+    }
+    kings = piece_mirror_h(kings);
+    if (kings < board.kings) {
+        return 0;
+    }
+    kings = piece_mirror_v(kings);
+    if (kings < board.kings) {
+        return 0;
+    }
+    kings = piece_mirror_d(kings);
+    if (kings < board.kings) {
+        return 0;
+    }
+    kings = piece_mirror_v(kings);
+    if (kings < board.kings) {
+        return 0;
+    }
+    kings = piece_mirror_h(kings);
+    if (kings < board.kings) {
+        return 0;
+    }
+    kings = piece_mirror_v(kings);
+    if (kings < board.kings) {
+        return 0;
+    }
+    return 1;
+}
 
 void print_board(Board board) {
     for (int i = 0; i < 64; ++i) {
@@ -84,12 +142,7 @@ float result(Board board) {
 }
 
 int scan(piece_t piece) {
-    for (int i = 0; i < 64; ++i) {
-        if ((1ULL << i) & piece) {
-            return i;
-        }
-    }
-    return -1;
+    return __builtin_ffsll(piece) - 1;
 }
 
 size_t hash(Board board) {
@@ -245,10 +298,14 @@ void solve_all_the_things() {
             if (node_value_terminal(nodes[i])) {
                 continue;
             }
+            Board board = from_hash(i);
+            if (!is_canonical(board)) {
+                continue;
+            }
             NodeValue parent = NODE_VALUE_INITIAL;
-            int num_children = children(from_hash(i), children_);
+            int num_children = children(board, children_);
             for (int j = 0; j < num_children; ++j) {
-                size_t h = hash(children_[j]);
+                size_t h = hash(canonize_board(children_[j]));
                 NodeValue child = nodes[h];
                 parent = node_value_negamax(parent, child);
             }
@@ -258,12 +315,13 @@ void solve_all_the_things() {
             }
         }
         Board board = {.player=3, .kings=4097, .rooks=2};
+        board = canonize_board(board);
         print_board(board);
         node_value_repr(nodes[hash(board)]);
         int numc = children(board, children_);
         printf("%d\n", numc);
         for (int i = 0; i < numc; ++i) {
-            Board child = children_[i];
+            Board child = canonize_board(children_[i]);
             print_board(child);
             node_value_repr(nodes[hash(child)]);
         }
