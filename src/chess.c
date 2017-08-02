@@ -146,19 +146,24 @@ Board from_hash(size_t h) {
     return board;
 }
 
-Board do_the_rook(Board parent, piece_t rook, piece_t move) {
-    Board child = parent;
-    child.rooks ^= rook;
-    child.player ^= rook;
+#define MAKE_MOVE(child, type, piece, move) {\
+    child.type ^= piece;\
+    child.player ^= piece;\
+    child.kings &= ~move;\
+    child.rooks &= ~move;\
+    child.bishops &= ~move;\
+    child.type |= move;\
+    child.player |= move;\
+    child.player = ~child.player;\
+}
 
-    child.rooks |= move;
-    child.player |= move;
-
-    child.kings &= ~move;
-    child.bishops &= ~move;
-
-    child.player = ~child.player;
-    return child;
+#define BEAM_INNER(index, type, piece) {\
+    piece_t move = 1ULL << (index);\
+    if (move & any & parent.player) break;\
+    Board child = parent;\
+    MAKE_MOVE(child, type, piece, move);\
+    out[num++] = child;\
+    if (move & any) break;\
 }
 
 int children(Board parent, Board *out) {
@@ -187,16 +192,8 @@ int children(Board parent, Board *out) {
             piece_t move = shift(king, j, k);
 
             Board child = parent;
-            child.kings ^= king;
-            child.player ^= king;
+            MAKE_MOVE(child, kings, king, move);
 
-            child.kings |= move;
-            child.player |= move;
-
-            child.rooks &= ~move;
-            child.bishops &= ~move;
-
-            child.player = ~child.player;
             out[num++] = child;
         }
     }
@@ -208,36 +205,16 @@ int children(Board parent, Board *out) {
         x = idx % 8;
         y = idx / 8;
         for (int i = x + 1; i < 8; ++i) {
-            piece_t move = 1ULL << (i + 8*y);
-            Board child = do_the_rook(parent, rook, move);
-            out[num++] = child;
-            if (move & any) {
-                break;
-            }
+            BEAM_INNER(i + 8*y, rooks, rook);
         }
         for (int i = x - 1; i >= 0; --i) {
-            piece_t move = 1ULL << (i + 8*y);
-            Board child = do_the_rook(parent, rook, move);
-            out[num++] = child;
-            if (move & any) {
-                break;
-            }
+            BEAM_INNER(i + 8*y, rooks, rook);
         }
         for (int i = y + 1; i < 8; ++i) {
-            piece_t move = 1ULL << (x + 8*i);
-            Board child = do_the_rook(parent, rook, move);
-            out[num++] = child;
-            if (move & any) {
-                break;
-            }
+            BEAM_INNER(x + 8*i, rooks, rook);
         }
         for (int i = y - 1; i >= 0; --i) {
-            piece_t move = 1ULL << (x + 8*i);
-            Board child = do_the_rook(parent, rook, move);
-            out[num++] = child;
-            if (move & any) {
-                break;
-            }
+            BEAM_INNER(x + 8*i, rooks, rook);
         }
         rooks ^= rook;
     }
